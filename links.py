@@ -1,7 +1,8 @@
 import requests
 from urllib.parse import urlparse, parse_qs, urlencode
+import argparse
 
-def verificar_redireccion(archivo):
+def verificar_redireccion(archivo, url_redirigir):
     # Abrimos el archivo que contiene los enlaces
     with open(archivo, 'r') as f:
         enlaces = f.readlines()
@@ -19,23 +20,34 @@ def verificar_redireccion(archivo):
             # Si el parámetro 'redirect' está presente, lo modificamos
             if 'redirect' in query_params:
                 # Modificar la URL del redireccionamiento
-                query_params['redirect'] = ['https://dockerlabs.es']
+                query_params['redirect'] = [url_redirigir]
                 
                 # Reconstruir la URL con los parámetros modificados
                 new_query = urlencode(query_params, doseq=True)
                 new_url = parsed_url._replace(query=new_query).geturl()
 
+                # Realizamos una solicitud HTTP a la nueva URL
                 try:
-                    # Realizamos una solicitud HTTP a la nueva URL
                     respuesta = requests.get(new_url, allow_redirects=True)
 
-                    # Verificamos si la página redirige correctamente (que no sea error.php)
-                    if 'error.php' not in respuesta.url:
-                        print(f'El enlace que redirige correctamente es: {enlace}')
+                    # Verificamos si la página redirige correctamente a la URL proporcionada
+                    if url_redirigir in respuesta.url:
+                        print(f'URL original: {enlace}')
+                        print(f'URL que redirige a {url_redirigir}: {new_url}\n')
                 except requests.exceptions.RequestException as e:
                     # Si hay un error en la solicitud (como un enlace roto), lo manejamos aquí
-                    print(f'Error al intentar acceder a la URL: {new_url}, error: {e}')
+                    print(f'Error al intentar acceder a la URL modificada: {new_url}, error: {e}\n')
 
-# Llamar a la función pasando el archivo de texto como parámetro
-archivo = 'enlaces.txt'  # Cambia el nombre del archivo según sea necesario
-verificar_redireccion(archivo)
+if __name__ == '__main__':
+    # Crear un parser para los argumentos de línea de comandos
+    parser = argparse.ArgumentParser(description='Verificar redirección de enlaces.')
+    
+    # Agregar los argumentos -u (URL) y -f (archivo de enlaces)
+    parser.add_argument('-u', '--url', type=str, required=True, help='URL específica para el parámetro "redirect"')
+    parser.add_argument('-f', '--archivo', type=str, required=True, help='Archivo con los enlaces a verificar')
+
+    # Parsear los argumentos de la línea de comandos
+    args = parser.parse_args()
+
+    # Llamar a la función pasando los parámetros
+    verificar_redireccion(args.archivo, args.url)
